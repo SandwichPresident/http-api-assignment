@@ -1,13 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <title>Our simple HTTP server</title>
   <link rel="stylesheet" type="text/css" href="/style.css">
-  
-  <script>
 
+  <script>
+    const handleResponse = async (response) => {
+      const content = document.querySelector('#content');
+      const contentType = response.headers.get('content-type');
+      const rawText = await response.text();
+
+      // Print raw response text to console before parsing
+      console.log(rawText);
+
+      let messageText = '';
+      let titleText = '';
+
+      if (contentType && contentType.includes('text/xml')) {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(rawText, 'text/xml');
+        messageText = xmlDoc.querySelector('message') ? xmlDoc.querySelector('message').textContent : '';
+        const idNode = xmlDoc.querySelector('id');
+        if (idNode) {
+          titleText = idNode.textContent;
+        }
+      } else {
+        const parsedJson = JSON.parse(rawText);
+        messageText = parsedJson.message || '';
+        if (parsedJson.id) {
+          titleText = parsedJson.id;
+        }
+      }
+
+      // Fallback titles if no id field was sent
+      if (!titleText) {
+        if (response.status === 200) titleText = 'Success';
+        else if (response.status === 400) titleText = 'Bad Request';
+        else if (response.status === 401) titleText = 'Unauthorized';
+        else if (response.status === 403) titleText = 'Forbidden';
+        else if (response.status === 500) titleText = 'Internal Server Error';
+        else if (response.status === 501) titleText = 'Not Implemented';
+        else titleText = 'Resource Not Found';
+      }
+
+      content.innerHTML = `<h2>${titleText}</h2><p>Message: ${messageText}</p>`;
+    };
+
+    const sendFetch = async () => {
+      const url = document.querySelector('#page').value;
+      const type = document.querySelector('#type').value;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': type,
+        },
+      });
+
+      handleResponse(response);
+    };
+
+    const init = () => {
+      const sendBtn = document.querySelector('#send');
+      sendBtn.addEventListener('click', sendFetch);
+    };
+
+    window.onload = init;
   </script>
 </head>
+
 <body>
   <section id="top">
     <h3>Status Code Tests</h3>
@@ -29,4 +91,5 @@
   <section id="content">
   </section>
 </body>
+
 </html>
